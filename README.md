@@ -105,15 +105,20 @@ rollback_qoder_compact.bat   :: 管理员运行，从最近 .bak_compact_* 备�
 
 ### 实现
 
-单文件 10 处 patch（3 副本 × 4 项，幂等）：
+单文件 13 处 patch（3 副本 × 5 项，幂等）：
 - P-A：禁用条件 `z = r || e.trim().length<3` → `z = r`（仅对话生成中禁用）
 - P-B：禁用条件 `$ = e.length > 常量` → `$ = false`（解除 1000 字符上限）
 - P-C：`if(Gi[Ui.SHOW_MODEL_SELECTOR]){...}` → 无条件调用 `resolvePromptModelMeta`，
   请求始终携带自定义模型 `_meta`（provider/model/api_key）
 - P-D：`extra.customModel = {name: MODEL_KEY, value: model}`（普通聊天同款字段）
-  —— 仅传 `_meta` 不够（实测仍报官方配额错误 113）；cosy 的
-  `AskParams.extra.customModel`（ChatAskExtraParams）才是指定 BYOK 模型引用的通道，
-  cosy 按 name 从本地 byok 配置解析 api_key 直连第三方 API
+- P-E：**客户端本地 BYOK 增强**（绕过 cosy 官方配额）——实测 P-C/P-D 均无效：
+  cosy 的 `EnhancePrompt` 与 `remote_model`（官方模型）同区编译，配额门禁在 cosy/云端
+  （`remote_model.handleQuotaExhausted` + `auth/user.ReadQuotaCache`），客户端参数被忽略。
+  P-E 改为：直接用 `_meta.CUSTOM_MODEL.parameters.api_key` 在客户端 fetch
+  自定义模型 API（OpenAI 兼容端点，provider=deepseek 时默认
+  `https://api.deepseek.com/chat/completions`），成功即替换输入框并 return，
+  失败 fallback 原 extension 链路。已在 stub 环境实测通过
+  （URL/模型/Auth 头正确、输出解析正确）
 
 ### 使用
 

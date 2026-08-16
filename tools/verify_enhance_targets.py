@@ -14,6 +14,7 @@ targets = {
     "P-B3 $(UX)": "$=(0,UX.useMemo)(()=>e.length>zvb,[e])",
     "P-C 强制_meta": "let G;if(Gi[Ui.SHOW_MODEL_SELECTOR]){const X=c||\"agent\"",
     "P-D extra.customModel": "params:{sessionId:d,questionText:e,references:K,...G?{_meta:G}:{}}}})",
+    "P-E 插入锚点": "try{const K=await",
 }
 for name, s in targets.items():
     n = data.count(s)
