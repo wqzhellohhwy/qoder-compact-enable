@@ -4,6 +4,7 @@ __pycache__/
 
 # Backup files
 *.bak_compact_*
+*.bak_enhance_*
 
 # Test artifacts
 _test_*

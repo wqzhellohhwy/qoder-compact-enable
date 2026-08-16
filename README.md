@@ -92,12 +92,57 @@ rollback_qoder_compact.bat   :: 管理员运行，从最近 .bak_compact_* 备�
   说明新版本代码结构已变化；可用 `tools/` 下的分析脚本重新定位
   （`search_compact.py` 搜关键词 → `extract_threshold.py` 提取上下文 → `verify_compact.py` 验证）
 
+## 功能二：优化输入增强（promptEnhance）
+
+### 项目背景
+
+输入框旁的"优化输入"（Prompt Enhance）按钮存在两处本地限制与一处通道缺陷：
+- **字数限制**：输入 <3 字符或 >1000 字符时按钮禁用（3 个窗口副本）
+- **通道缺陷**：请求仅在 `SHOW_MODEL_SELECTOR` 特性开关开启时才附带自定义模型元数据
+  （`_meta`）；实测 cosy 下发的特性配置不含 `showModelSelector` → 请求从不带 `_meta`
+  → 增强请求走官方模型通道（消耗官方每日配额，错误码 110 "daily usage limit"），
+  而非用户配置的自定义模型（BYOK）
+
+### 实现
+
+单文件 9 处 patch（3 副本 × 3 项，幂等）：
+- P-A：禁用条件 `z = r || e.trim().length<3` → `z = r`（仅对话生成中禁用）
+- P-B：禁用条件 `$ = e.length > 常量` → `$ = false`（解除 1000 字符上限）
+- P-C：`if(Gi[Ui.SHOW_MODEL_SELECTOR]){...}` → 无条件调用 `resolvePromptModelMeta`，
+  请求始终携带自定义模型 `_meta`（provider/model/api_key）→ cosy 走 BYOK 直连
+  第三方 API，无官方每日配额，消耗自己的 token
+
+### 使用
+
+```bat
+:: 1. 完全退出 Qoder
+:: 2. 右键以管理员身份运行
+patch_qoder_enhance.bat
+
+:: 3. 重启 Qoder -> 优化输入任意长度可点，请求走自定义模型
+```
+
+### 回滚
+
+```bat
+rollback_qoder_enhance.bat   :: 管理员运行，从最近 .bak_enhance_* 备份恢复
+```
+
+### 验证
+
+- 1-2 字符 / 超 1000 字符的输入，优化输入按钮均可点击
+- 日志出现 `resolvePromptModelMeta custom model resolved: provider=deepseek`
+  且随后的增强请求不再返回 110（今日已达上限）
+- 自定义模型平台（如 DeepSeek 开放平台）可见增强请求的 token 消耗
+
 ## 目录结构
 
 ```
 compact/
-├── patch_qoder_compact.py/.bat    # 主 patch 脚本（幂等，管理员）
-├── rollback_qoder_compact.py/.bat # 回滚脚本（从最近备份恢复）
+├── patch_qoder_compact.py/.bat    # 压缩：解除 40% 门槛（3 副本，幂等，管理员）
+├── rollback_qoder_compact.py/.bat # 压缩回滚
+├── patch_qoder_enhance.py/.bat    # 优化输入：解除字数限制 + 强制自定义模型通道
+├── rollback_qoder_enhance.py/.bat # 优化输入回滚
 ├── tools/                         # 逆向分析辅助脚本（可复用）
 │   ├── search_compact.py          # 关键词统计定位
 │   ├── extract_*.py               # 上下文/常量/组件提取
