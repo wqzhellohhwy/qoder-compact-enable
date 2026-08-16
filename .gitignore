@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.pyc
+
+# Backup files
+*.bak_compact_*
+
+# Test artifacts
+_test_*
+_js_*
