@@ -105,12 +105,15 @@ rollback_qoder_compact.bat   :: 管理员运行，从最近 .bak_compact_* 备�
 
 ### 实现
 
-单文件 9 处 patch（3 副本 × 3 项，幂等）：
+单文件 10 处 patch（3 副本 × 4 项，幂等）：
 - P-A：禁用条件 `z = r || e.trim().length<3` → `z = r`（仅对话生成中禁用）
 - P-B：禁用条件 `$ = e.length > 常量` → `$ = false`（解除 1000 字符上限）
 - P-C：`if(Gi[Ui.SHOW_MODEL_SELECTOR]){...}` → 无条件调用 `resolvePromptModelMeta`，
-  请求始终携带自定义模型 `_meta`（provider/model/api_key）→ cosy 走 BYOK 直连
-  第三方 API，无官方每日配额，消耗自己的 token
+  请求始终携带自定义模型 `_meta`（provider/model/api_key）
+- P-D：`extra.customModel = {name: MODEL_KEY, value: model}`（普通聊天同款字段）
+  —— 仅传 `_meta` 不够（实测仍报官方配额错误 113）；cosy 的
+  `AskParams.extra.customModel`（ChatAskExtraParams）才是指定 BYOK 模型引用的通道，
+  cosy 按 name 从本地 byok 配置解析 api_key 直连第三方 API
 
 ### 使用
 

@@ -60,6 +60,12 @@ PATCHES = [
         "let G;if(Gi[Ui.SHOW_MODEL_SELECTOR]){const X=c||\"agent\"",
         "let G;{const X=c||\"agent\"",
     ),
+    # P-D：extra 附带 customModel（cosy AskParams.extra.customModel 通道，普通聊天同款）
+    #      —— 仅传 _meta 不够，cosy EnhancePrompt 仍走官方通道；extra.customModel 指明 BYOK 模型引用
+    (
+        "params:{sessionId:d,questionText:e,references:K,...G?{_meta:G}:{}}}})",
+        "params:{sessionId:d,questionText:e,references:K,extra:G?.MODEL_KEY?{customModel:{name:G.MODEL_KEY,value:G.CUSTOM_MODEL?.model||G.MODEL_KEY}}:{},...G?{_meta:G}:{}}}})",
+    ),
 ]
 
 def detect_js():
