@@ -92,68 +92,19 @@ rollback_qoder_compact.bat   :: 管理员运行，从最近 .bak_compact_* 备�
   说明新版本代码结构已变化；可用 `tools/` 下的分析脚本重新定位
   （`search_compact.py` 搜关键词 → `extract_threshold.py` 提取上下文 → `verify_compact.py` 验证）
 
-## 功能二：优化输入增强（promptEnhance）
+## 相关项目
 
-### 项目背景
-
-输入框旁的"优化输入"（Prompt Enhance）按钮存在两处本地限制与一处通道缺陷：
-- **字数限制**：输入 <3 字符或 >1000 字符时按钮禁用（3 个窗口副本）
-- **通道缺陷**：请求仅在 `SHOW_MODEL_SELECTOR` 特性开关开启时才附带自定义模型元数据
-  （`_meta`）；实测 cosy 下发的特性配置不含 `showModelSelector` → 请求从不带 `_meta`
-  → 增强请求走官方模型通道（消耗官方每日配额，错误码 110 "daily usage limit"），
-  而非用户配置的自定义模型（BYOK）
-
-### 实现
-
-单文件 13 处 patch（3 副本 × 5 项，幂等）：
-- P-A：禁用条件 `z = r || e.trim().length<3` → `z = r`（仅对话生成中禁用）
-- P-B：禁用条件 `$ = e.length > 常量` → `$ = false`（解除 1000 字符上限）
-- P-C：`if(Gi[Ui.SHOW_MODEL_SELECTOR]){...}` → 无条件调用 `resolvePromptModelMeta`，
-  请求始终携带自定义模型 `_meta`（provider/model/api_key）
-- P-D：`extra.customModel = {name: MODEL_KEY, value: model}`（普通聊天同款字段）
-- P-E：**客户端本地 BYOK 增强**（绕过 cosy 官方配额）——实测 P-C/P-D 均无效：
-  cosy 的 `EnhancePrompt` 与 `remote_model`（官方模型）同区编译，配额门禁在 cosy/云端
-  （`remote_model.handleQuotaExhausted` + `auth/user.ReadQuotaCache`），客户端参数被忽略。
-  P-E 改为：直接用 `_meta.CUSTOM_MODEL.parameters.api_key` 在客户端 fetch
-  自定义模型 API（OpenAI 兼容端点，provider=deepseek 时默认
-  `https://api.deepseek.com/chat/completions`），成功即替换输入框并 return，
-  失败 fallback 原 extension 链路。
-  **验证结论**：stub 运行通过 + 真机日志确认（点击时刻 `resolvePromptModelMeta`
-  仅 1 次 = 无 fallback；失败会触发第 2 次调用）。
-  **注意事项**：系统代理开启且代理不可用时 fetch 会失败
-  （`ERR_PROXY_CONNECTION_FAILED`）并 fallback 官方通道——无代理直连正常
-
-### 使用
-
-```bat
-:: 1. 完全退出 Qoder
-:: 2. 右键以管理员身份运行
-patch_qoder_enhance.bat
-
-:: 3. 重启 Qoder -> 优化输入任意长度可点，请求走自定义模型
-```
-
-### 回滚
-
-```bat
-rollback_qoder_enhance.bat   :: 管理员运行，从最近 .bak_enhance_* 备份恢复
-```
-
-### 验证
-
-- 1-2 字符 / 超 1000 字符的输入，优化输入按钮均可点击
-- 日志出现 `resolvePromptModelMeta custom model resolved: provider=deepseek`
-  且随后的增强请求不再返回 110（今日已达上限）
-- 自定义模型平台（如 DeepSeek 开放平台）可见增强请求的 token 消耗
+- **优化输入增强**（解除字数限制 + 绕过官方配额，客户端直连 DeepSeek）：
+  独立仓库 [qoder-enhance-enable](https://github.com/wqzhellohhwy/qoder-enhance-enable)，
+  也可用本仓库的 `rollback_qoder_all.bat` 统一回滚两个项目
 
 ## 目录结构
 
 ```
 compact/
 ├── patch_qoder_compact.py/.bat    # 压缩：解除 40% 门槛（3 副本，幂等，管理员）
-├── rollback_qoder_compact.py/.bat # 压缩回滚
-├── patch_qoder_enhance.py/.bat    # 优化输入：解除字数限制 + 强制自定义模型通道
-├── rollback_qoder_enhance.py/.bat # 优化输入回滚
+├── rollback_qoder_compact.py/.bat # 压缩回滚（从 .bak_compact_* 恢复）
+├── rollback_qoder_all.py/.bat     # 统一回滚 compact+enhance 全部 patch（精确逆向）
 ├── tools/                         # 逆向分析辅助脚本（可复用）
 │   ├── search_compact.py          # 关键词统计定位
 │   ├── extract_*.py               # 上下文/常量/组件提取
