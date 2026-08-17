@@ -117,8 +117,11 @@ rollback_qoder_compact.bat   :: 管理员运行，从最近 .bak_compact_* 备�
   P-E 改为：直接用 `_meta.CUSTOM_MODEL.parameters.api_key` 在客户端 fetch
   自定义模型 API（OpenAI 兼容端点，provider=deepseek 时默认
   `https://api.deepseek.com/chat/completions`），成功即替换输入框并 return，
-  失败 fallback 原 extension 链路。已在 stub 环境实测通过
-  （URL/模型/Auth 头正确、输出解析正确）
+  失败 fallback 原 extension 链路。
+  **验证结论**：stub 运行通过 + 真机日志确认（点击时刻 `resolvePromptModelMeta`
+  仅 1 次 = 无 fallback；失败会触发第 2 次调用）。
+  **注意事项**：系统代理开启且代理不可用时 fetch 会失败
+  （`ERR_PROXY_CONNECTION_FAILED`）并 fallback 官方通道——无代理直连正常
 
 ### 使用
 
